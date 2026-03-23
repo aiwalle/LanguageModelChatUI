@@ -139,8 +139,14 @@ public extension ConversationSession {
 
             await updateTitle()
         } catch {
+            let retryDecision = retryDecision(for: error)
             _ = appendNewMessage(role: .assistant) { msg in
                 msg.textContent = "```\n\(error.localizedDescription)\n```"
+                msg.finishReason = .error
+                msg.metadata["error.retryable"] = retryDecision.isRetryable ? "1" : "0"
+                if let statusCode = retryDecision.statusCode {
+                    msg.metadata["error.statusCode"] = "\(statusCode)"
+                }
             }
             await requestUpdate(view: messageListView)
         }
@@ -150,5 +156,52 @@ public extension ConversationSession {
         persistMessages()
 
         sessionDelegate?.allowIdleTimer()
+    }
+}
+
+private extension ConversationSession {
+    struct RetryDecision {
+        let isRetryable: Bool
+        let statusCode: Int?
+    }
+
+    func retryDecision(for error: Error) -> RetryDecision {
+        if error is CancellationError {
+            return .init(isRetryable: false, statusCode: nil)
+        }
+
+        if let inferenceError = error as? InferenceError,
+           case .cancelled = inferenceError
+        {
+            return .init(isRetryable: false, statusCode: nil)
+        }
+
+        let nsError = error as NSError
+        let statusCode: Int? = (100 ... 599).contains(nsError.code) ? nsError.code : nil
+        if let statusCode {
+            switch statusCode {
+            case 400, 401, 403, 404:
+                return .init(isRetryable: false, statusCode: statusCode)
+            default:
+                return .init(isRetryable: true, statusCode: statusCode)
+            }
+        }
+
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .cancelled, .badURL, .unsupportedURL, .userAuthenticationRequired, .userCancelledAuthentication:
+                return .init(isRetryable: false, statusCode: nil)
+            default:
+                return .init(isRetryable: true, statusCode: nil)
+            }
+        }
+
+        if let inferenceError = error as? InferenceError,
+           case .noResponseFromModel = inferenceError
+        {
+            return .init(isRetryable: true, statusCode: nil)
+        }
+
+        return .init(isRetryable: true, statusCode: nil)
     }
 }

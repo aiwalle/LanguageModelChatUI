@@ -11,22 +11,22 @@
         }
       }
     },
-    "Calculating context window..." : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在计算上下文窗口..."
-          }
-        }
-      }
-    },
     "Audio" : {
       "localizations" : {
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "音频"
+          }
+        }
+      }
+    },
+    "Calculating context window..." : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在计算上下文窗口..."
           }
         }
       }
@@ -307,6 +307,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在准备转写..."
+          }
+        }
+      }
+    },
+    "Retry" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
           }
         }
       }

@@ -30,6 +30,7 @@ extension MessageListView {
         case userAttachment(String, Attachments)
         case reasoningContent(String, MessageRepresentation)
         case responseContent(String, MessageRepresentation)
+        case retryAction(String)
         case hint(String, String)
         case toolCallHint(String, ToolCallContentPart)
         case activityReporting(String)
@@ -40,6 +41,7 @@ extension MessageListView {
             case let .userAttachment(id, _): "user-attachment-\(id)"
             case let .reasoningContent(id, _): "reasoning-\(id)"
             case let .responseContent(id, _): "response-\(id)"
+            case let .retryAction(id): "retry-\(id)"
             case let .hint(id, _): "hint-\(id)"
             case let .toolCallHint(id, _): "tool-\(id)"
             case let .activityReporting(msg): "activity-\(msg)"
@@ -169,7 +171,21 @@ extension MessageListView {
             }
         }
 
+        if isRetryActionEnabled,
+           let lastMessage = messages.last,
+           lastMessage.role == .assistant,
+           lastMessage.finishReason == .error,
+           isRetryableErrorMessage(lastMessage)
+        {
+            entries.append(.retryAction(lastMessage.id))
+        }
+
         return entries
+    }
+
+    private func isRetryableErrorMessage(_ message: ConversationMessage) -> Bool {
+        let value = message.metadata["error.retryable"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return value == "1" || value == "true" || value == "yes"
     }
 }
 

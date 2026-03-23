@@ -77,6 +77,7 @@ open class ChatViewController: UIViewController {
     private var keyboardHeight: CGFloat = 0
 
     private var draftInputObject: ChatInputContent?
+    private var lastSubmittedInputObject: ChatInputContent?
 
     public init(
         conversationID: String = UUID().uuidString,
@@ -111,6 +112,9 @@ open class ChatViewController: UIViewController {
         view.addSubview(chatInputView)
         messageListView.addGestureRecognizer(dismissKeyboardTapGesture)
         messageListView.theme = configuration.messageTheme
+        messageListView.retryActionHandler = { [weak self] in
+            self?.retryLastSubmission()
+        }
 
         let session = ConversationSessionManager.shared.session(for: conversationID, configuration: sessionConfiguration)
         applyConversationModels(conversationModels, to: session)
@@ -394,6 +398,19 @@ open class ChatViewController: UIViewController {
         topBarContentView.addSubview(navigationTitleView)
         topBarContentView.addSubview(menuButton)
     }
+
+    private func retryLastSubmission() {
+        guard let session = messageListView.session,
+              let model = session.models.chat,
+              let lastSubmittedInputObject
+        else {
+            return
+        }
+        guard session.currentTask == nil else { return }
+
+        let userInput = makeUserInput(from: lastSubmittedInputObject)
+        session.runInference(model: model, messageListView: messageListView, input: userInput) {}
+    }
 }
 
 // MARK: - Title Regeneration
@@ -457,6 +474,8 @@ extension ChatViewController: ChatInputDelegate {
             completion(false)
             return
         }
+        lastSubmittedInputObject = object
+        messageListView.isRetryActionEnabled = true
         let userInput = makeUserInput(from: object)
         draftInputObject = nil
         session.runInference(model: model, messageListView: messageListView, input: userInput) {

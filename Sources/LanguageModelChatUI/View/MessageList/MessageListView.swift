@@ -54,6 +54,14 @@ public final class MessageListView: UIView {
     private var isAutoScrollingToBottom: Bool = true
     private var sessionScopedCancellables: Set<AnyCancellable> = .init()
     let loadingState = CurrentValueSubject<String?, Never>(nil)
+    var retryActionHandler: (() -> Void)?
+    var isRetryActionEnabled: Bool = false {
+        didSet {
+            guard isRetryActionEnabled != oldValue else { return }
+            guard session != nil else { return }
+            updateList()
+        }
+    }
 
     var contentSafeAreaInsets: UIEdgeInsets = .zero {
         didSet { setNeedsLayout() }

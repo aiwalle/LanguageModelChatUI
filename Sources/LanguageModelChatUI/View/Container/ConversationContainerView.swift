@@ -18,6 +18,7 @@ import UIKit
 ///
 open class ConversationContainerView: UIView {
     private var draftInputObject: ChatInputContent?
+    private var lastSubmittedInputObject: ChatInputContent?
     public var conversationModels: ConversationSession.Models = .init()
 
     public let messageListView = MessageListView()
@@ -43,6 +44,9 @@ open class ConversationContainerView: UIView {
         addSubview(messageListView)
         addSubview(chatInputView)
         chatInputView.delegate = self
+        messageListView.retryActionHandler = { [weak self] in
+            self?.retryLastSubmission()
+        }
 
         chatInputView.snp.makeConstraints { make in
             make.left.right.equalToSuperview()
@@ -80,6 +84,8 @@ extension ConversationContainerView: ChatInputDelegate {
             completion(false)
             return
         }
+        lastSubmittedInputObject = object
+        messageListView.isRetryActionEnabled = true
         let userInput = makeUserInput(from: object)
         draftInputObject = nil
         session.runInference(model: model, messageListView: messageListView, input: userInput) {
@@ -109,5 +115,18 @@ extension ConversationContainerView: ChatInputDelegate {
             responder = next
         }
         return nil
+    }
+
+    private func retryLastSubmission() {
+        guard let session = messageListView.session,
+              let model = session.models.chat,
+              let lastSubmittedInputObject
+        else {
+            return
+        }
+        guard session.currentTask == nil else { return }
+
+        let userInput = makeUserInput(from: lastSubmittedInputObject)
+        session.runInference(model: model, messageListView: messageListView, input: userInput) {}
     }
 }

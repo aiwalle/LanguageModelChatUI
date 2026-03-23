@@ -14,6 +14,7 @@ private extension MessageListView {
         case userAttachment
         case reasoningContent
         case responseContent
+        case retryAction
         case hint
         case toolCallHint
         case activityReporting
@@ -32,6 +33,7 @@ extension MessageListView: ListViewAdapter {
         case .userAttachment: RowType.userAttachment
         case .reasoningContent: RowType.reasoningContent
         case .responseContent: RowType.responseContent
+        case .retryAction: RowType.retryAction
         case .hint: RowType.hint
         case .toolCallHint: RowType.toolCallHint
         case .activityReporting: RowType.activityReporting
@@ -50,6 +52,8 @@ extension MessageListView: ListViewAdapter {
             ReasoningContentView()
         case .responseContent:
             ResponseView()
+        case .retryAction:
+            RetryActionView()
         case .hint:
             HintMessageView()
         case .toolCallHint:
@@ -98,6 +102,8 @@ extension MessageListView: ListViewAdapter {
                 let package = markdownPackageCache.package(for: message, theme: theme)
                 markdownViewForSizeCalculation.setMarkdownManually(package)
                 return ceil(markdownViewForSizeCalculation.boundingSize(for: containerWidth).height)
+            case .retryAction:
+                return RetryActionView.preferredHeight
             case .hint:
                 return ceil(theme.fonts.footnote.lineHeight + 16)
             case let .activityReporting(content):
@@ -131,6 +137,14 @@ extension MessageListView: ListViewAdapter {
                 responseView.theme = theme
                 let package = markdownPackageCache.package(for: message, theme: theme)
                 responseView.markdownView.setMarkdown(package)
+            }
+        } else if let retryActionView = rowView as? RetryActionView {
+            if case .retryAction = entry {
+                retryActionView.theme = theme
+                retryActionView.buttonTitle = String.localized("Retry")
+                retryActionView.tapHandler = { [weak self] in
+                    self?.retryActionHandler?()
+                }
             }
         } else if let hintMessageView = rowView as? HintMessageView {
             if case let .hint(_, content) = entry {
