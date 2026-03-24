@@ -25,6 +25,10 @@ extension InputEditor {
             moreButton.transform = .identity
             sendButton.transform = .identity
             voiceButton.transform = .identity
+            if submitAction == .stop {
+                layoutStatus = .editingText
+                return
+            }
             if textView.isFirstResponder {
                 if textView.text.isEmpty {
                     layoutStatus = .preFocusText

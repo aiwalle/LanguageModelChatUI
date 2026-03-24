@@ -14,6 +14,15 @@ open class ChatInputView: EditorSectionView {
         didSet { applyConfiguration() }
     }
 
+    /// Indicates whether the current conversation is generating a response.
+    /// When enabled, the input submit button switches to a stop action.
+    public var isGenerating: Bool = false {
+        didSet {
+            guard oldValue != isGenerating else { return }
+            inputEditor.submitAction = isGenerating ? .stop : .send
+        }
+    }
+
     public required init() {
         super.init()
 

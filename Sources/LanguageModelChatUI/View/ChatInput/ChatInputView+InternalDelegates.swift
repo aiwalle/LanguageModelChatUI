@@ -36,8 +36,13 @@ extension ChatInputView: InputEditor.Delegate {
         }
     }
 
-    func onInputEditorSubmitButtonTapped() {
-        submitValues()
+    func onInputEditorSubmitButtonTapped(action: InputEditor.SubmitAction) {
+        switch action {
+        case .send:
+            submitValues()
+        case .stop:
+            delegate?.chatInputDidRequestStopGeneration(self)
+        }
     }
 
     func onInputEditorBeginEditing() {

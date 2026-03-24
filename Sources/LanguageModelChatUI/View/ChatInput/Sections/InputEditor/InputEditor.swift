@@ -20,6 +20,19 @@ class InputEditor: EditorSectionView {
     let moreButton = IconButton(icon: "plus.circle")
     let sendButton = IconButton(icon: "send")
 
+    enum SubmitAction {
+        case send
+        case stop
+    }
+
+    var submitAction: SubmitAction = .send {
+        didSet {
+            guard oldValue != submitAction else { return }
+            applySubmitActionAppearance()
+            switchToRequiredStatus()
+        }
+    }
+
     let inset: UIEdgeInsets = .init(top: 10, left: 10, bottom: 10, right: 10)
     let iconSpacing: CGFloat = 10
     let iconSize = CGSize(width: 30, height: 30)
@@ -102,7 +115,8 @@ class InputEditor: EditorSectionView {
         }
         elementClipper.addSubview(moreButton)
         sendButton.tapAction = { [weak self] in
-            self?.delegate?.onInputEditorSubmitButtonTapped()
+            guard let self else { return }
+            delegate?.onInputEditorSubmitButtonTapped(action: submitAction)
         }
         elementClipper.addSubview(sendButton)
 
@@ -116,6 +130,7 @@ class InputEditor: EditorSectionView {
             .sink { [weak self] height in self?.heightPublisher.send(height) }
             .store(in: &cancellables)
         updateTextHeight()
+        applySubmitActionAppearance()
     }
 
     override func layoutSubviews() {
@@ -140,5 +155,16 @@ class InputEditor: EditorSectionView {
         updatePlaceholderAlpha()
         switchToRequiredStatus()
         updateTextHeight()
+    }
+
+    private func applySubmitActionAppearance() {
+        switch submitAction {
+        case .send:
+            sendButton.change(icon: "send")
+            sendButton.imageView.tintColor = .label
+        case .stop:
+            sendButton.imageView.image = UIImage(systemName: "stop.circle")?.withRenderingMode(.alwaysTemplate)
+            sendButton.imageView.tintColor = .systemRed
+        }
     }
 }

@@ -14,7 +14,7 @@ extension InputEditor {
         func onInputEditorToggleMoreButtonTapped()
         func onInputEditorBeginEditing()
         func onInputEditorEndEditing()
-        func onInputEditorSubmitButtonTapped()
+        func onInputEditorSubmitButtonTapped(action: InputEditor.SubmitAction)
         func onInputEditorPasteAsAttachmentTapped()
         func onInputEditorTextChanged(text: String)
         func onInputEditorPastingLargeTextAsDocument(content: String)
