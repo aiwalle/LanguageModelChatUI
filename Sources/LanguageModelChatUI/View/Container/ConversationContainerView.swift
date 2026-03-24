@@ -5,6 +5,7 @@
 //  The main embeddable chat view. Manages a message list and input editor.
 //
 
+import Combine
 import SnapKit
 import UIKit
 
@@ -19,6 +20,7 @@ import UIKit
 open class ConversationContainerView: UIView {
     private var draftInputObject: ChatInputContent?
     private var lastSubmittedInputObject: ChatInputContent?
+    private var executionStateCancellable: AnyCancellable?
     public var conversationModels: ConversationSession.Models = .init()
 
     public let messageListView = MessageListView()
@@ -70,6 +72,17 @@ open class ConversationContainerView: UIView {
         applyConversationModels(models, to: session)
         messageListView.session = session
         chatInputView.bind(conversationID: conversationID)
+        chatInputView.isGenerating = session.currentTask != nil
+        bindExecutionStateUpdates(conversationID: conversationID)
+    }
+
+    private func bindExecutionStateUpdates(conversationID: String) {
+        executionStateCancellable?.cancel()
+        executionStateCancellable = ConversationSessionManager.shared.executingSessionsPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] executingSessions in
+                self?.chatInputView.isGenerating = executingSessions.contains(conversationID)
+            }
     }
 }
 
@@ -95,6 +108,11 @@ extension ConversationContainerView: ChatInputDelegate {
 
     public func chatInputDidUpdateObject(_: ChatInputView, object: ChatInputContent) {
         draftInputObject = object
+    }
+
+    public func chatInputDidRequestStopGeneration(_: ChatInputView) {
+        guard let session = messageListView.session else { return }
+        session.cancelCurrentTask {}
     }
 
     public func chatInputDidRequestObjectForRestore(_: ChatInputView) -> ChatInputContent? {

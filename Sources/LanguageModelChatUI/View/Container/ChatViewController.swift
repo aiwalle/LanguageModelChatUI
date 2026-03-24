@@ -122,8 +122,10 @@ open class ChatViewController: UIViewController {
         messageListView.session = session
         chatInputView.delegate = self
         chatInputView.bind(conversationID: conversationID)
+        chatInputView.isGenerating = session.currentTask != nil
         configureNavigationItems()
         bindNavigationTitleUpdates(session: session)
+        bindExecutionStateUpdates()
         refreshNavigationTitle()
 
         setupKeyboardObservation()
@@ -344,6 +346,16 @@ open class ChatViewController: UIViewController {
             .store(in: &cancellables)
     }
 
+    private func bindExecutionStateUpdates() {
+        ConversationSessionManager.shared.executingSessionsPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] executingSessions in
+                guard let self else { return }
+                chatInputView.isGenerating = executingSessions.contains(conversationID)
+            }
+            .store(in: &cancellables)
+    }
+
     private func resolveTitle(from metadata: ConversationTitleMetadata?) -> String {
         guard currentSession != nil else { return String.localized("Chat") }
         if let storedTitle = metadata?.title {
@@ -485,6 +497,11 @@ extension ChatViewController: ChatInputDelegate {
 
     public func chatInputDidUpdateObject(_: ChatInputView, object: ChatInputContent) {
         draftInputObject = object
+    }
+
+    public func chatInputDidRequestStopGeneration(_: ChatInputView) {
+        guard let session = messageListView.session else { return }
+        session.cancelCurrentTask {}
     }
 
     public func chatInputDidRequestObjectForRestore(_: ChatInputView) -> ChatInputContent? {
