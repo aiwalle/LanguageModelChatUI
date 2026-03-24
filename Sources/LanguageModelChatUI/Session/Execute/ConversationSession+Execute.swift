@@ -139,16 +139,20 @@ public extension ConversationSession {
 
             await updateTitle()
         } catch {
-            let retryDecision = retryDecision(for: error)
-            _ = appendNewMessage(role: .assistant) { msg in
-                msg.textContent = "```\n\(error.localizedDescription)\n```"
-                msg.finishReason = .error
-                msg.metadata["error.retryable"] = retryDecision.isRetryable ? "1" : "0"
-                if let statusCode = retryDecision.statusCode {
-                    msg.metadata["error.statusCode"] = "\(statusCode)"
+            if isCancellation(error) {
+                await requestUpdate(view: messageListView)
+            } else {
+                let retryDecision = retryDecision(for: error)
+                _ = appendNewMessage(role: .assistant) { msg in
+                    msg.textContent = "```\n\(error.localizedDescription)\n```"
+                    msg.finishReason = .error
+                    msg.metadata["error.retryable"] = retryDecision.isRetryable ? "1" : "0"
+                    if let statusCode = retryDecision.statusCode {
+                        msg.metadata["error.statusCode"] = "\(statusCode)"
+                    }
                 }
+                await requestUpdate(view: messageListView)
             }
-            await requestUpdate(view: messageListView)
         }
 
         stopThinkingForAll()
@@ -203,5 +207,29 @@ private extension ConversationSession {
         }
 
         return .init(isRetryable: true, statusCode: nil)
+    }
+
+    func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+
+        if let inferenceError = error as? InferenceError,
+           case .cancelled = inferenceError
+        {
+            return true
+        }
+
+        if let urlError = error as? URLError,
+           urlError.code == .cancelled
+        {
+            return true
+        }
+
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain, nsError.code == URLError.cancelled.rawValue {
+            return true
+        }
+        return false
     }
 }
