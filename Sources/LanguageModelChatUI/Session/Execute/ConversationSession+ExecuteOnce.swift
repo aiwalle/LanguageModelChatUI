@@ -22,8 +22,8 @@ extension ConversationSession {
         tools: [ChatRequestBody.Tool]?
     ) async throws -> Bool {
         try checkCancellation()
-        await requestUpdate(view: messageListView)
-        await messageListView.loading()
+        requestUpdate(view: messageListView)
+        messageListView.loading()
 
         let message = appendNewMessage(role: .assistant)
         let collapseAfterReasoningComplete = collapseReasoningWhenComplete
@@ -31,6 +31,7 @@ extension ConversationSession {
         let client = model.client
         let stream = try await client.streamingChat(
             body: .init(
+                model: model.model,
                 messages: requestMessages,
                 stream: true,
                 tools: tools
@@ -63,14 +64,14 @@ extension ConversationSession {
                 let current = message.reasoningContent ?? ""
                 message.reasoningContent = current + chunk
                 updateVisibleState()
-                await self.requestUpdate(view: messageListView)
+                self.requestUpdate(view: messageListView)
             }
         }
         let textEmitter = await MainActor.run {
             BalancedEmitter(duration: 0.5, frequency: 20) { chunk in
                 message.textContent += chunk
                 updateVisibleState()
-                await self.requestUpdate(view: messageListView)
+                self.requestUpdate(view: messageListView)
             }
         }
         defer {
@@ -86,18 +87,18 @@ extension ConversationSession {
             switch resp {
             case let .reasoning(value):
                 await textEmitter.wait()
-                await reasoningEmitter.add(value)
+                reasoningEmitter.add(value)
 
             case let .text(value):
                 await reasoningEmitter.wait()
                 if streamedCharacterCount >= 5000 {
-                    await textEmitter.update(duration: 1.0, frequency: 3)
+                    textEmitter.update(duration: 1.0, frequency: 3)
                 } else if streamedCharacterCount >= 2000 {
-                    await textEmitter.update(duration: 1.0, frequency: 9)
+                    textEmitter.update(duration: 1.0, frequency: 9)
                 } else if streamedCharacterCount >= 1000 {
-                    await textEmitter.update(duration: 0.5, frequency: 15)
+                    textEmitter.update(duration: 0.5, frequency: 15)
                 }
-                await textEmitter.add(value)
+                textEmitter.add(value)
                 streamedCharacterCount += value.count
 
             case let .tool(call):
@@ -119,11 +120,11 @@ extension ConversationSession {
         await textEmitter.wait()
 
         stopThinking(for: message.id)
-        await requestUpdate(view: messageListView)
+        requestUpdate(view: messageListView)
 
         collapseReasoning()
         if collapseAfterReasoningComplete {
-            await requestUpdate(view: messageListView)
+            requestUpdate(view: messageListView)
         }
 
         let isFollowUpAfterToolResult: Bool = {
@@ -140,7 +141,7 @@ extension ConversationSession {
            (message.reasoningContent ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
             removeMessage(with: message.id)
-            await requestUpdate(view: messageListView)
+            requestUpdate(view: messageListView)
             return false
         }
 
@@ -150,7 +151,7 @@ extension ConversationSession {
             message.textContent = String.localized("Thinking finished without output any content.")
         }
 
-        await requestUpdate(view: messageListView)
+        requestUpdate(view: messageListView)
 
         requestMessages.append(
             .assistant(
@@ -178,7 +179,7 @@ extension ConversationSession {
 
         guard let toolProvider, !pendingToolCalls.isEmpty else { return false }
 
-        await messageListView.loading(with: String.localized("Utilizing tool call"))
+        messageListView.loading(with: String.localized("Utilizing tool call"))
 
         struct ToolCallEntry {
             let request: ToolRequest
@@ -208,7 +209,7 @@ extension ConversationSession {
             }
             toolCallEntries.append(ToolCallEntry(request: request, tool: tool, hintMessage: hintMessage))
         }
-        await requestUpdate(view: messageListView)
+        requestUpdate(view: messageListView)
 
         let toolResponseLimit = 64 * 1024
         var orderedToolResponses = [(text: String, isError: Bool)?](
@@ -258,7 +259,7 @@ extension ConversationSession {
             entry.hintMessage.parts.append(
                 .toolResult(.init(toolCallID: entry.request.id, result: response.text))
             )
-            await requestUpdate(view: messageListView)
+            requestUpdate(view: messageListView)
 
             requestMessages.append(
                 .tool(
@@ -268,7 +269,7 @@ extension ConversationSession {
             )
         }
 
-        await requestUpdate(view: messageListView)
+        requestUpdate(view: messageListView)
         return true
     }
 }
